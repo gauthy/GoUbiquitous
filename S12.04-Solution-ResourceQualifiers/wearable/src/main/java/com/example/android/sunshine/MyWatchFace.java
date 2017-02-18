@@ -228,6 +228,7 @@ public class MyWatchFace extends CanvasWatchFaceService {
                     .addConnectionCallbacks(this)
                     .addOnConnectionFailedListener(this)
                     .build();
+            mGoogleApiClient.connect();
 
         }
 
@@ -603,6 +604,9 @@ public class MyWatchFace extends CanvasWatchFaceService {
         public void onConnected(@Nullable Bundle bundle) {
 
             Wearable.DataApi.addListener(mGoogleApiClient, this);
+
+
+            Log.d("Connection", "connected");
         }
 
         @Override

@@ -19,13 +19,18 @@ import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
+import android.os.Bundle;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.text.format.DateUtils;
+import android.util.Log;
 
 import com.example.android.sunshine.data.SunshinePreferences;
 import com.example.android.sunshine.data.WeatherContract;
 import com.example.android.sunshine.utilities.NetworkUtils;
 import com.example.android.sunshine.utilities.NotificationUtils;
 import com.example.android.sunshine.utilities.OpenWeatherJsonUtils;
+import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.wearable.DataMap;
 import com.google.android.gms.wearable.PutDataMapRequest;
@@ -34,7 +39,7 @@ import com.google.android.gms.wearable.Wearable;
 
 import java.net.URL;
 
-public class SunshineSyncTask {
+public class SunshineSyncTask implements GoogleApiClient.ConnectionCallbacks,GoogleApiClient.OnConnectionFailedListener {
 
     /**
      * Performs the network request for updated weather, parses the JSON from that request, and
@@ -92,25 +97,32 @@ public class SunshineSyncTask {
                GoogleApiClient mGoogleApiClient = new GoogleApiClient.Builder(context)
                         .addApi(Wearable.API)
                         .build();
-
+                   mGoogleApiClient.connect();
                 Cursor cursor=context.getContentResolver().query(WeatherContract.WeatherEntry.CONTENT_URI,new String[]{
                         WeatherContract.WeatherEntry.COLUMN_MIN_TEMP,
                         WeatherContract.WeatherEntry.COLUMN_MAX_TEMP,
                         WeatherContract.WeatherEntry.COLUMN_WEATHER_ID},null,null,null);
+                ConnectionResult result=mGoogleApiClient.blockingConnect();
+                if(result.isSuccess()) {
 
+                    if (cursor != null) {
+                        cursor.moveToFirst();
+                        PutDataMapRequest putDataMapRequest = PutDataMapRequest.create(PATH);
+                        DataMap dataMap = putDataMapRequest.getDataMap();
+                        dataMap.putString(HIGH_TEMP, cursor.getString(cursor.getColumnIndex(WeatherContract.WeatherEntry.COLUMN_MAX_TEMP)));
+                        dataMap.putString(LOW_TEMP, cursor.getString(cursor.getColumnIndex(WeatherContract.WeatherEntry.COLUMN_MIN_TEMP)));
+                        dataMap.putString(WEATHER_ID, cursor.getString(cursor.getColumnIndex(WeatherContract.WeatherEntry.COLUMN_WEATHER_ID)));
+                        PutDataRequest putDataRequest = putDataMapRequest.asPutDataRequest();
+                        Wearable.DataApi.putDataItem(mGoogleApiClient, putDataRequest);
 
-                if(cursor!=null)
-                {
-                    PutDataMapRequest putDataMapRequest=PutDataMapRequest.create(PATH);
-                    DataMap dataMap=putDataMapRequest.getDataMap();
-                    dataMap.putString(HIGH_TEMP,cursor.getString(cursor.getColumnIndex(WeatherContract.WeatherEntry.COLUMN_MAX_TEMP)));
-                    dataMap.putString(LOW_TEMP,cursor.getString(cursor.getColumnIndex(WeatherContract.WeatherEntry.COLUMN_MIN_TEMP)));
-                    dataMap.putString(WEATHER_ID,cursor.getString(cursor.getColumnIndex(WeatherContract.WeatherEntry.COLUMN_WEATHER_ID)));
-                    PutDataRequest putDataRequest=putDataMapRequest.asPutDataRequest();
-                    Wearable.DataApi.putDataItem(mGoogleApiClient,putDataRequest);
+                    }
+                    Log.d("connection","Data To Watchface");
 
                 }
-
+                else
+                {
+                    Log.d("connection","failed to send");
+                }
                 /*
                  * Finally, after we insert data into the ContentProvider, determine whether or not
                  * we should notify the user that the weather has been refreshed.
@@ -147,5 +159,23 @@ public class SunshineSyncTask {
             /* Server probably invalid */
             e.printStackTrace();
         }
+    }
+
+    @Override
+    public void onConnected(@Nullable Bundle bundle) {
+        Log.d("connection","Data To Watchface");
+
+    }
+
+    @Override
+    public void onConnectionSuspended(int i) {
+        Log.d("connection","Data To Watchface failed");
+
+    }
+
+    @Override
+    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
+        Log.d("connection","Data To failed");
+
     }
 }
