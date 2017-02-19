@@ -39,6 +39,8 @@ import com.google.android.gms.wearable.Wearable;
 
 import java.net.URL;
 
+import static com.google.android.gms.wearable.DataMap.TAG;
+
 public class SunshineSyncTask implements GoogleApiClient.ConnectionCallbacks,GoogleApiClient.OnConnectionFailedListener {
 
     /**
@@ -94,35 +96,35 @@ public class SunshineSyncTask implements GoogleApiClient.ConnectionCallbacks,Goo
 
 
 
-               GoogleApiClient mGoogleApiClient = new GoogleApiClient.Builder(context)
+                GoogleApiClient mGoogleClient=new GoogleApiClient.Builder(context)
                         .addApi(Wearable.API)
                         .build();
-                   mGoogleApiClient.connect();
-                Cursor cursor=context.getContentResolver().query(WeatherContract.WeatherEntry.CONTENT_URI,new String[]{
-                        WeatherContract.WeatherEntry.COLUMN_MIN_TEMP,
-                        WeatherContract.WeatherEntry.COLUMN_MAX_TEMP,
-                        WeatherContract.WeatherEntry.COLUMN_WEATHER_ID},null,null,null);
-                ConnectionResult result=mGoogleApiClient.blockingConnect();
-                if(result.isSuccess()) {
 
-                    if (cursor != null) {
-                        cursor.moveToFirst();
+                Cursor cursor=context.getContentResolver()
+                        .query(WeatherContract.WeatherEntry.CONTENT_URI,new String[]{WeatherContract.WeatherEntry.COLUMN_MIN_TEMP,WeatherContract.WeatherEntry.COLUMN_MAX_TEMP,WeatherContract.WeatherEntry.COLUMN_WEATHER_ID},null,null,null);
+
+
+
+
+                if(cursor!=null)
+                {
+                    cursor.moveToFirst();
+                    ConnectionResult res=mGoogleClient.blockingConnect();
+                    if(res.isSuccess()) {
                         PutDataMapRequest putDataMapRequest = PutDataMapRequest.create(PATH);
                         DataMap dataMap = putDataMapRequest.getDataMap();
                         dataMap.putString(HIGH_TEMP, cursor.getString(cursor.getColumnIndex(WeatherContract.WeatherEntry.COLUMN_MAX_TEMP)));
                         dataMap.putString(LOW_TEMP, cursor.getString(cursor.getColumnIndex(WeatherContract.WeatherEntry.COLUMN_MIN_TEMP)));
-                        dataMap.putString(WEATHER_ID, cursor.getString(cursor.getColumnIndex(WeatherContract.WeatherEntry.COLUMN_WEATHER_ID)));
+                        dataMap.putInt(WEATHER_ID, Integer.parseInt(cursor.getString(cursor.getColumnIndex(WeatherContract.WeatherEntry.COLUMN_WEATHER_ID))));
                         PutDataRequest putDataRequest = putDataMapRequest.asPutDataRequest();
-                        Wearable.DataApi.putDataItem(mGoogleApiClient, putDataRequest);
+                        Wearable.DataApi.putDataItem(mGoogleClient, putDataRequest);
+
 
                     }
-                    Log.d("connection","Data To Watchface");
+                }
 
-                }
-                else
-                {
-                    Log.d("connection","failed to send");
-                }
+
+
                 /*
                  * Finally, after we insert data into the ContentProvider, determine whether or not
                  * we should notify the user that the weather has been refreshed.
@@ -163,7 +165,7 @@ public class SunshineSyncTask implements GoogleApiClient.ConnectionCallbacks,Goo
 
     @Override
     public void onConnected(@Nullable Bundle bundle) {
-        Log.d("connection","Data To Watchface");
+        Log.d("connection","Data To Watchface1");
 
     }
 

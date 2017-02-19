@@ -40,13 +40,16 @@ import android.support.wearable.watchface.WatchFaceService;
 import android.support.wearable.watchface.WatchFaceStyle;
 import android.util.Log;
 import android.view.SurfaceHolder;
+import android.view.WindowInsets;
 import android.widget.Toast;
 
 import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.common.api.ResultCallback;
 import com.google.android.gms.wearable.DataApi;
 import com.google.android.gms.wearable.DataEvent;
 import com.google.android.gms.wearable.DataEventBuffer;
 import com.google.android.gms.wearable.DataItem;
+import com.google.android.gms.wearable.DataItemBuffer;
 import com.google.android.gms.wearable.DataMap;
 import com.google.android.gms.wearable.DataMapItem;
 import com.google.android.gms.wearable.Wearable;
@@ -146,9 +149,14 @@ public class MyWatchFace extends CanvasWatchFaceService {
         private boolean mLowBitAmbient;
         private boolean mBurnInProtection;
         private GoogleApiClient mGoogleApiClient;
-        private String maxTemp = "25";
-        private String minTemp = "0";
-        private String weatherId = "511";
+        private String maxTemp = "30";
+        private String minTemp = "10";
+        private int weatherId = 511;
+        float mIconOffsetX=50;
+        float mIconOffsetY=140;
+       int  mMaxtempoffset;
+        int mMintempoffset;
+
 
         @Override
         public void onCreate(SurfaceHolder holder) {
@@ -462,15 +470,14 @@ public class MyWatchFace extends CanvasWatchFaceService {
             /*
              * Save the canvas state before we can begin to rotate it.
              */
-            canvas.drawText(maxTemp + "\u00b0", mCenterX + 25, mCenterY + 45, mmaxTemp);
-            canvas.drawText(minTemp + "\u00b0", mCenterX + 30, mCenterY + 80, mminTemp);
+            canvas.drawText(maxTemp + "\u00b0", mCenterX + mMaxtempoffset-10, mCenterY + 40, mmaxTemp);
+            canvas.drawText(minTemp + "\u00b0", mCenterX + mMintempoffset-10, mCenterY + 85, mminTemp);
 
 
             if (!mAmbient) {
-                int icon = getIconResourceForWeatherCondition(Integer.parseInt(weatherId));
+                int icon = getIconResourceForWeatherCondition(weatherId);
                 Bitmap weatherIcon = BitmapFactory.decodeResource(getResources(), icon);
-                float mIconOffsetX=50;
-                float mIconOffsetY=140;
+
                 canvas.drawBitmap(weatherIcon, mIconOffsetX, mIconOffsetY, null);
             }
 
@@ -560,6 +567,21 @@ public class MyWatchFace extends CanvasWatchFaceService {
             MyWatchFace.this.registerReceiver(mTimeZoneReceiver, filter);
         }
 
+        @Override
+        public void onApplyWindowInsets(WindowInsets insets) {
+            super.onApplyWindowInsets(insets);
+
+            boolean isRound = insets.isRound();
+
+
+            mIconOffsetX = (isRound ? 60 : 50);
+            mIconOffsetY = (isRound ? 160 : 140);
+
+            mMaxtempoffset = (isRound ? 35 : 25);
+            mMintempoffset = (isRound ? 40 : 30);
+
+              }
+
         private void unregisterReceiver() {
             if (!mRegisteredTimeZoneReceiver) {
                 return;
@@ -604,7 +626,7 @@ public class MyWatchFace extends CanvasWatchFaceService {
         public void onConnected(@Nullable Bundle bundle) {
 
             Wearable.DataApi.addListener(mGoogleApiClient, this);
-
+            Wearable.DataApi.getDataItems(mGoogleApiClient).setResultCallback(OnConnectedResultCallback);
 
             Log.d("Connection", "connected");
         }
@@ -625,15 +647,7 @@ public class MyWatchFace extends CanvasWatchFaceService {
             for (DataEvent event : dataEventBuffer) {
                 if (event.getType() == DataEvent.TYPE_CHANGED) {
                     DataItem item = event.getDataItem();
-                    if ("/watchface".equals(item.getUri().getPath())) {
-                        DataMap dataMap = DataMapItem.fromDataItem(item).getDataMap();
-                        if (dataMap.containsKey("HIGH"))
-                            maxTemp = dataMap.getString("HIGH");
-                        if (dataMap.containsKey("LOW"))
-                            minTemp = dataMap.getString("LOW");
-                        if (dataMap.containsKey("WID"))
-                            weatherId = dataMap.getString("WID");
-                    }
+                    getreqdata(item);
                 }
             }
 
@@ -642,21 +656,50 @@ public class MyWatchFace extends CanvasWatchFaceService {
 
 
         }
+        ResultCallback<DataItemBuffer> OnConnectedResultCallback=new ResultCallback<DataItemBuffer>() {
+            @Override
+            public void onResult(DataItemBuffer dataItems) {
+                for(DataItem item:dataItems)
+                {
+                    getreqdata(item);
+
+                }
+                dataItems.release();
+                invalidate();
+            }
+        };
+        public void getreqdata(DataItem item)
+        {
+
+                if ("/watchface".equals(item.getUri().getPath())) {
+                    DataMap dataMap = DataMapItem.fromDataItem(item).getDataMap();
+                    if (dataMap.containsKey("HIGH"))
+                        maxTemp = dataMap.getString("HIGH");
+                    if (dataMap.containsKey("LOW"))
+                        minTemp = dataMap.getString("LOW");
+                    if (dataMap.containsKey("WID"))
+                        weatherId = dataMap.getInt("WID");
+                    invalidate();
+                }
+
+            }
+
+
 
         public int getIconResourceForWeatherCondition(int weatherId) {
-            if (weatherId >= 200 && weatherId <= 232) {
+            if (weatherId >= 200 && weatherId <= 300) {
                 return R.drawable.ic_storm;
             } else if (weatherId >= 300 && weatherId <= 321) {
                 return R.drawable.ic_light_rain;
-            } else if (weatherId >= 500 && weatherId <= 504) {
+            } else if (weatherId >= 321 && weatherId <= 504) {
                 return R.drawable.ic_rain;
-            } else if (weatherId == 511) {
+            } else if (weatherId == 505) {
                 return R.drawable.ic_snow;
-            } else if (weatherId >= 520 && weatherId <= 531) {
+            } else if (weatherId >= 505 && weatherId <= 531) {
                 return R.drawable.ic_rain;
-            } else if (weatherId >= 600 && weatherId <= 622) {
+            } else if (weatherId >= 532 && weatherId <= 622) {
                 return R.drawable.ic_snow;
-            } else if (weatherId >= 701 && weatherId <= 761) {
+            } else if (weatherId >= 622 && weatherId <= 761) {
                 return R.drawable.ic_fog;
             } else if (weatherId == 761 || weatherId == 781) {
                 return R.drawable.ic_storm;
@@ -664,7 +707,7 @@ public class MyWatchFace extends CanvasWatchFaceService {
                 return R.drawable.ic_clear;
             } else if (weatherId == 801) {
                 return R.drawable.ic_light_clouds;
-            } else if (weatherId >= 802 && weatherId <= 804) {
+            } else if (weatherId >= 761 && weatherId <= 804) {
                 return R.drawable.ic_cloudy;
             }
             return -1;
